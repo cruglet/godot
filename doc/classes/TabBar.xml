@@ -261,6 +261,9 @@
 		<member name="scroll_to_selected" type="bool" setter="set_scroll_to_selected" getter="get_scroll_to_selected" default="true">
 			If [code]true[/code], the tab offset will be changed to keep the currently selected tab visible.
 		</member>
+		<member name="close_with_middle_mouse" type="bool" setter="set_close_with_middle_mouse" getter="get_close_with_middle_mouse" default="true">
+		If [code]true[/code], middle clicking on the mouse will fire the [signal tab_close_pressed] signal.
+		</member>
 		<member name="scrolling_enabled" type="bool" setter="set_scrolling_enabled" getter="get_scrolling_enabled" default="true">
 			if [code]true[/code], the mouse's scroll wheel can be used to navigate the scroll view.
 		</member>

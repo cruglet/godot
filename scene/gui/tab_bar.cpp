@@ -204,7 +204,7 @@ void TabBar::gui_input(const Ref<InputEvent> &p_event) {
 		}
 
 		if (mb->is_pressed() && mb->get_button_index() == MouseButton::MIDDLE) {
-			if(close_with_middle_mouse) {
+			if (close_with_middle_mouse) {
 				emit_signal(SNAME("tab_close_pressed"), hover);
 			}
 		}

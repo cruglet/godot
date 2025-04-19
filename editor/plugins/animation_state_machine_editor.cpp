@@ -30,15 +30,18 @@
 
 #include "animation_state_machine_editor.h"
 
+#include "core/input/input_enums.h"
 #include "core/io/resource_loader.h"
 #include "core/math/geometry_2d.h"
 #include "core/os/keyboard.h"
+#include "core/typedefs.h"
 #include "editor/editor_node.h"
 #include "editor/editor_settings.h"
 #include "editor/editor_undo_redo_manager.h"
 #include "editor/gui/editor_file_dialog.h"
 #include "editor/themes/editor_scale.h"
 #include "scene/animation/animation_blend_tree.h"
+#include "scene/gui/control.h"
 #include "scene/gui/line_edit.h"
 #include "scene/gui/option_button.h"
 #include "scene/gui/panel_container.h"
@@ -153,7 +156,7 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 	if (!read_only) {
 		if (mb.is_valid() && mb->is_pressed() && !box_selecting && !connecting && ((tool_select->is_pressed() && mb->get_button_index() == MouseButton::RIGHT) || (tool_create->is_pressed() && mb->get_button_index() == MouseButton::LEFT))) {
 			connecting_from = StringName();
-			_open_menu(mb->get_position());
+			_open_menu(state_machine_draw->get_local_mouse_position());
 		}
 	}
 
@@ -165,7 +168,7 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 		selected_node = StringName();
 
 		for (int i = node_rects.size() - 1; i >= 0; i--) { //inverse to draw order
-			if (node_rects[i].play.has_point(mb->get_position())) { //edit name
+			if (node_rects[i].play.has_point(state_machine_draw->get_local_mouse_position())) { //edit name
 				if (play_mode->get_selected() == 1 || !playback->is_playing()) {
 					// Start
 					playback->start(node_directory + String(node_rects[i].node_name));
@@ -178,7 +181,7 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 			}
 
 			if (!read_only) {
-				if (node_rects[i].name.has_point(mb->get_position()) && state_machine->can_edit_node(node_rects[i].node_name)) { // edit name
+				if (node_rects[i].name.has_point(state_machine_draw->get_local_mouse_position()) && state_machine->can_edit_node(node_rects[i].node_name)) { // edit name
 					// TODO: Avoid using strings, expose a method on LineEdit.
 					Ref<StyleBox> line_sb = name_edit->get_theme_stylebox(CoreStringName(normal));
 					Rect2 edit_rect = node_rects[i].name;
@@ -197,12 +200,12 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 				}
 			}
 
-			if (node_rects[i].edit.has_point(mb->get_position())) { //edit name
+			if (node_rects[i].edit.has_point(state_machine_draw->get_local_mouse_position())) { //edit name
 				callable_mp(this, &AnimationNodeStateMachineEditor::_open_editor).call_deferred(node_rects[i].node_name);
 				return;
 			}
 
-			if (node_rects[i].node.has_point(mb->get_position())) { //select node since nothing else was selected
+			if (node_rects[i].node.has_point(state_machine_draw->get_local_mouse_position())) { //select node since nothing else was selected
 				selected_node = node_rects[i].node_name;
 
 				if (!selected_nodes.has(selected_node)) {
@@ -217,7 +220,7 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 				state_machine_draw->queue_redraw();
 				dragging_selected_attempt = true;
 				dragging_selected = false;
-				drag_from = mb->get_position();
+				drag_from = state_machine_draw->get_local_mouse_position();
 				snap_x = StringName();
 				snap_y = StringName();
 				_update_mode();
@@ -232,8 +235,8 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 
 		// First find closest lines using point-to-segment distance.
 		for (int i = 0; i < transition_lines.size(); i++) {
-			Vector2 cpoint = Geometry2D::get_closest_point_to_segment(mb->get_position(), transition_lines[i].from, transition_lines[i].to);
-			float d = cpoint.distance_to(mb->get_position());
+			Vector2 cpoint = Geometry2D::get_closest_point_to_segment(state_machine_draw->get_local_mouse_position(), transition_lines[i].from, transition_lines[i].to);
+			float d = cpoint.distance_to(state_machine_draw->get_local_mouse_position());
 
 			if (d > transition_lines[i].width) {
 				continue;
@@ -256,7 +259,7 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 
 			for (int idx : close_candidates) {
 				Vector2 midpoint = (transition_lines[idx].from + transition_lines[idx].to) / 2.0;
-				float midpoint_dist = midpoint.distance_to(mb->get_position());
+				float midpoint_dist = midpoint.distance_to(state_machine_draw->get_local_mouse_position());
 
 				if (midpoint_dist < best_midpoint_dist) {
 					best_midpoint_dist = midpoint_dist;
@@ -322,11 +325,11 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 	// Connect nodes
 	if (mb.is_valid() && ((tool_select->is_pressed() && mb->is_shift_pressed()) || tool_connect->is_pressed()) && mb->get_button_index() == MouseButton::LEFT && mb->is_pressed()) {
 		for (int i = node_rects.size() - 1; i >= 0; i--) { //inverse to draw order
-			if (node_rects[i].node.has_point(mb->get_position())) { //select node since nothing else was selected
+			if (node_rects[i].node.has_point(state_machine_draw->get_local_mouse_position())) { //select node since nothing else was selected
 				connecting = true;
 				connection_follows_cursor = true;
 				connecting_from = node_rects[i].node_name;
-				connecting_to = mb->get_position();
+				connecting_to = state_machine_draw->get_local_mouse_position();
 				connecting_to_node = StringName();
 				return;
 			}
@@ -347,7 +350,7 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 				_add_transition();
 			}
 		} else {
-			_open_menu(mb->get_position());
+			_open_menu(state_machine_draw->get_local_mouse_position());
 		}
 		connecting_to_node = StringName();
 		connection_follows_cursor = false;
@@ -378,7 +381,7 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 	if (mb.is_valid() && mb->is_pressed() && mb->get_button_index() == MouseButton::LEFT) {
 		StringName clicked_node;
 		for (int i = node_rects.size() - 1; i >= 0; i--) {
-			if (node_rects[i].node.has_point(mb->get_position())) {
+			if (node_rects[i].node.has_point(state_machine_draw->get_local_mouse_position())) {
 				clicked_node = node_rects[i].node_name;
 				break;
 			}
@@ -409,7 +412,7 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 			EditorNode::get_singleton()->push_item(anode.ptr(), "", true);
 			dragging_selected_attempt = true;
 			dragging_selected = false;
-			drag_from = mb->get_position();
+			drag_from = state_machine_draw->get_local_mouse_position();
 			snap_x = StringName();
 			snap_y = StringName();
 		}
@@ -421,13 +424,26 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 
 	// Pan window
 	if (mm.is_valid() && mm->get_button_mask().has_flag(MouseButtonMask::MIDDLE)) {
-		h_scroll->set_value(h_scroll->get_value() - mm->get_relative().x);
-		v_scroll->set_value(v_scroll->get_value() - mm->get_relative().y);
+		h_scroll->set_value(h_scroll->get_value() - (mm->get_relative().x / state_machine_draw->get_scale().x));
+		v_scroll->set_value(v_scroll->get_value() - (mm->get_relative().y / state_machine_draw->get_scale().y));
 	}
+
+	// Zoom window
+	Vector2 scale = state_machine_draw->get_scale();
+	if (mb.is_valid() && mb->get_button_index() == MouseButton::WHEEL_UP) {
+		scale.x += 0.05;
+	}
+	if (mb.is_valid() && mb->get_button_index() == MouseButton::WHEEL_DOWN) {
+		scale.x -= 0.05;
+	}
+
+	scale.x = CLAMP(scale.x, 0.25, 4);
+	scale.y = scale.x;
+	state_machine_draw->set_scale(scale);
 
 	// Move mouse while connecting
 	if (mm.is_valid() && connecting && connection_follows_cursor && !read_only) {
-		connecting_to = mm->get_position();
+		connecting_to = state_machine_draw->get_local_mouse_position();
 		connecting_to_node = StringName();
 		state_machine_draw->queue_redraw();
 
@@ -442,7 +458,7 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 	// Move mouse while moving a node
 	if (mm.is_valid() && dragging_selected_attempt && !read_only) {
 		dragging_selected = true;
-		drag_ofs = mm->get_position() - drag_from;
+		drag_ofs = state_machine_draw->get_local_mouse_position() - drag_from;
 		snap_x = StringName();
 		snap_y = StringName();
 		{
@@ -518,11 +534,11 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 					continue; // start/end node can't be edited
 				}
 
-				if (node_rects[i].node.has_point(mm->get_position())) {
+				if (node_rects[i].node.has_point(state_machine_draw->get_local_mouse_position())) {
 					new_hovered_node_name = node_rects[i].node_name;
-					if (node_rects[i].play.has_point(mm->get_position())) {
+					if (node_rects[i].play.has_point(state_machine_draw->get_local_mouse_position())) {
 						new_hovered_node_area = HOVER_NODE_PLAY;
-					} else if (node_rects[i].edit.has_point(mm->get_position())) {
+					} else if (node_rects[i].edit.has_point(state_machine_draw->get_local_mouse_position())) {
 						new_hovered_node_area = HOVER_NODE_EDIT;
 					}
 					break;
@@ -541,8 +557,8 @@ void AnimationNodeStateMachineEditor::_state_machine_gui_input(const Ref<InputEv
 			int closest = -1;
 			float closest_d = 1e20;
 			for (int i = 0; i < transition_lines.size(); i++) {
-				Vector2 cpoint = Geometry2D::get_closest_point_to_segment(mm->get_position(), transition_lines[i].from, transition_lines[i].to);
-				float d = cpoint.distance_to(mm->get_position());
+				Vector2 cpoint = Geometry2D::get_closest_point_to_segment(state_machine_draw->get_local_mouse_position(), transition_lines[i].from, transition_lines[i].to);
+				float d = cpoint.distance_to(state_machine_draw->get_local_mouse_position());
 				if (d > transition_lines[i].width) {
 					continue;
 				}
@@ -956,9 +972,6 @@ void AnimationNodeStateMachineEditor::_state_machine_draw() {
 		travel_path = playback->get_travel_path();
 	}
 
-	if (state_machine_draw->has_focus()) {
-		state_machine_draw->draw_rect(Rect2(Point2(), state_machine_draw->get_size()), theme_cache.focus_color, false);
-	}
 	int sep = 3 * EDSCALE;
 
 	List<StringName> nodes;
@@ -1256,6 +1269,12 @@ void AnimationNodeStateMachineEditor::_state_machine_draw() {
 	state_machine_play_pos->queue_redraw();
 }
 
+void AnimationNodeStateMachineEditor::_state_machine_draw_container() {
+	if (state_machine_draw_container->has_focus()) {
+		state_machine_draw_container->draw_rect(Rect2(Point2(), state_machine_draw_container->get_size()), theme_cache.focus_color, false);
+	}
+}
+
 void AnimationNodeStateMachineEditor::_update_connected_nodes(const StringName &p_node) {
 	connected_nodes.clear();
 	if (p_node != StringName()) {
@@ -1320,6 +1339,11 @@ void AnimationNodeStateMachineEditor::_state_machine_pos_draw_individual(const S
 	state_machine_play_pos->draw_line(from, to, theme_cache.playback_background_color, 2);
 	to = from.lerp(to, p_ratio);
 	state_machine_play_pos->draw_line(from, to, theme_cache.playback_color, 2);
+}
+
+void AnimationNodeStateMachineEditor::_state_machine_draw_resized() {
+	Vector2 size = state_machine_draw->get_size();
+	state_machine_draw->set_pivot_offset(Vector2(size.x / 2, size.y / 2));
 }
 
 void AnimationNodeStateMachineEditor::_state_machine_pos_draw_all() {
@@ -1834,11 +1858,18 @@ AnimationNodeStateMachineEditor::AnimationNodeStateMachineEditor() {
 	add_child(panel);
 	panel->set_v_size_flags(SIZE_EXPAND_FILL);
 
+	state_machine_draw_container = memnew(Control);
+	panel->add_child(state_machine_draw_container);
+	state_machine_draw_container->set_mouse_filter(Control::MOUSE_FILTER_PASS);
+	state_machine_draw_container->connect(SceneStringName(gui_input), callable_mp(this, &AnimationNodeStateMachineEditor::_state_machine_gui_input));
+	state_machine_draw_container->connect(SceneStringName(draw), callable_mp(this, &AnimationNodeStateMachineEditor::_state_machine_draw_container));
+
 	state_machine_draw = memnew(Control);
-	panel->add_child(state_machine_draw);
-	state_machine_draw->connect(SceneStringName(gui_input), callable_mp(this, &AnimationNodeStateMachineEditor::_state_machine_gui_input));
+	state_machine_draw_container->add_child(state_machine_draw);
 	state_machine_draw->connect(SceneStringName(draw), callable_mp(this, &AnimationNodeStateMachineEditor::_state_machine_draw));
+	state_machine_draw->connect(SNAME("resized"), callable_mp(this, &AnimationNodeStateMachineEditor::_state_machine_draw_resized));
 	state_machine_draw->set_focus_mode(FOCUS_ALL);
+	state_machine_draw->set_anchors_preset(PRESET_FULL_RECT);
 	state_machine_draw->set_mouse_filter(Control::MOUSE_FILTER_PASS);
 
 	state_machine_play_pos = memnew(Control);
@@ -1848,12 +1879,12 @@ AnimationNodeStateMachineEditor::AnimationNodeStateMachineEditor() {
 	state_machine_play_pos->connect(SceneStringName(draw), callable_mp(this, &AnimationNodeStateMachineEditor::_state_machine_pos_draw_all));
 
 	v_scroll = memnew(VScrollBar);
-	state_machine_draw->add_child(v_scroll);
+	state_machine_draw_container->add_child(v_scroll);
 	v_scroll->set_anchors_and_offsets_preset(PRESET_RIGHT_WIDE);
 	v_scroll->connect(SceneStringName(value_changed), callable_mp(this, &AnimationNodeStateMachineEditor::_scroll_changed));
 
 	h_scroll = memnew(HScrollBar);
-	state_machine_draw->add_child(h_scroll);
+	state_machine_draw_container->add_child(h_scroll);
 	h_scroll->set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE);
 	h_scroll->set_offset(SIDE_RIGHT, -v_scroll->get_size().x * EDSCALE);
 	h_scroll->connect(SceneStringName(value_changed), callable_mp(this, &AnimationNodeStateMachineEditor::_scroll_changed));

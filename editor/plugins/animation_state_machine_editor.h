@@ -71,6 +71,7 @@ class AnimationNodeStateMachineEditor : public AnimationTreeNodeEditorPlugin {
 	HScrollBar *h_scroll = nullptr;
 	VScrollBar *v_scroll = nullptr;
 
+	Control *state_machine_draw_container = nullptr;
 	Control *state_machine_draw = nullptr;
 	Control *state_machine_play_pos = nullptr;
 
@@ -133,6 +134,8 @@ class AnimationNodeStateMachineEditor : public AnimationTreeNodeEditorPlugin {
 	void _connection_draw(const Vector2 &p_from, const Vector2 &p_to, AnimationNodeStateMachineTransition::SwitchMode p_mode, bool p_enabled, bool p_selected, bool p_travel, float p_fade_ratio, bool p_auto_advance, bool p_is_across_group, float p_opacity = 1.0);
 
 	void _state_machine_draw();
+	void _state_machine_draw_container();
+	void _state_machine_draw_resized();
 
 	void _state_machine_pos_draw_individual(const String &p_name, float p_ratio);
 	void _state_machine_pos_draw_all();

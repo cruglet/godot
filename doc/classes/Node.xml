@@ -1087,6 +1087,16 @@
 		<member name="process_priority" type="int" setter="set_process_priority" getter="get_process_priority" default="0">
 			The node's execution order of the process callbacks ([method _process], [constant NOTIFICATION_PROCESS], and [constant NOTIFICATION_INTERNAL_PROCESS]). Nodes whose priority value is [i]lower[/i] call their process callbacks first, regardless of tree order.
 		</member>
+		<member name="process_rate_interval" type="float" setter="set_process_rate_interval" getter="get_process_rate_interval">
+			Additional parameter used when [member process_rate_type] i- set to [constant PROCESS_RATE_SKIP_FRAMES] or [constant PROCESS_RATE_FIXED].
+			- For [constant PROCESS_RATE_SKIP_FRAMES], this defines how many frames to skip before each call to [method _process]. For example, a value of [code]2[/code] processes the node every third frame.
+			- For [constant PROCESS_RATE_FIXED], this defines the number of times per second [method _process] will be called (e.g. 30 = 30 times per second). Decimal values can also be used for finer control; for example, a value of [code]0.5[/code] means that the process function will be called once every 2 seconds (since 1 / 0.5 = 2).
+			Ignored when [member process_rate_type] is [constant PROCESS_RATE_CONTINUOUS].
+		</member>
+		<member name="process_rate_type" type="int" setter="set_process_rate_type" getter="get_process_rate_type" enum="Node.ProcessRateType" default="0">
+			The processing strategy for this node. Determines how often [method _process] is called; see [enum ProcessRate].
+			Use [method can_process] to check whether the node will currently process.
+		</member>
 		<member name="process_thread_group" type="int" setter="set_process_thread_group" getter="get_process_thread_group" enum="Node.ProcessThreadGroup" default="0">
 			Set the process thread group for this node (basically, whether it receives [constant NOTIFICATION_PROCESS], [constant NOTIFICATION_PHYSICS_PROCESS], [method _process] or [method _physics_process] (and the internal versions) on the main thread or in a sub-thread.
 			By default, the thread group is [constant PROCESS_THREAD_GROUP_INHERIT], which means that this node belongs to the same thread group as the parent node. The thread groups means that nodes in a specific thread group will process together, separate to other thread groups (depending on [member process_thread_group_order]). If the value is set is [constant PROCESS_THREAD_GROUP_SUB_THREAD], this thread group will occur on a sub thread (not the main thread), otherwise if set to [constant PROCESS_THREAD_GROUP_MAIN_THREAD] it will process on the main thread. If there is not a parent or grandparent node set to something other than inherit, the node will belong to the [i]default thread group[/i]. This default group will process on the main thread and its group order is 0.
@@ -1357,6 +1367,18 @@
 		</constant>
 		<constant name="PROCESS_MODE_DISABLED" value="4" enum="ProcessMode">
 			Never process. Completely disables processing, ignoring [member SceneTree.paused]. This is the inverse of [constant PROCESS_MODE_ALWAYS].
+		</constant>
+		<constant name="PROCESS_RATE_INHERIT" value="0" enum="ProcessRateType">
+			Inherits [member process_rate_type] from the node's parent. This is the default for any newly created node.
+		</constant>
+		<constant name="PROCESS_RATE_CONTINUOUS" value="1" enum="ProcessRateType">
+			Process every frame (default). Ignores [member process_rate_interval].
+		</constant>
+		<constant name="PROCESS_RATE_SKIP_FRAMES" value="2" enum="ProcessRateType">
+			Skip a fixed number of frames between processing.
+		</constant>
+		<constant name="PROCESS_RATE_FIXED" value="3" enum="ProcessRateType">
+			Process at a fixed number of times per second, independent of frame rate.
 		</constant>
 		<constant name="PROCESS_THREAD_GROUP_INHERIT" value="0" enum="ProcessThreadGroup">
 			Process this node based on the thread group mode of the first parent (or grandparent) node that has a thread group mode that is not inherit. See [member process_thread_group] for more information.

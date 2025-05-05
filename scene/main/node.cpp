@@ -29,6 +29,7 @@
 /**************************************************************************/
 
 #include "node.h"
+#include "core/object/object.h"
 #include "node.compat.inc"
 
 #include "core/config/project_settings.h"
@@ -126,7 +127,38 @@ void Node::_notification(int p_notification) {
 		} break;
 
 		case NOTIFICATION_PROCESS: {
-			GDVIRTUAL_CALL(_process, get_process_delta_time());
+			ProcessRateType process_rate;
+			if (!data.process_rate_owner) {
+				process_rate = PROCESS_RATE_CONTINUOUS;
+			} else {
+				process_rate = data.process_rate_owner->get_process_rate_type();
+			}
+			switch (process_rate) {
+				case PROCESS_RATE_CONTINUOUS: {
+					GDVIRTUAL_CALL(_process, get_process_delta_time());
+					break;
+				}
+				case PROCESS_RATE_SKIP_FRAMES: {
+					if (frames_skipped >= data.process_rate_owner->get_process_rate_interval()) {
+						GDVIRTUAL_CALL(_process, get_process_delta_time());
+						frames_skipped = 0;
+					} else {
+						frames_skipped += 1;
+					}
+					break;
+				}
+				case PROCESS_RATE_FIXED: {
+					accumulated_process_time += get_process_delta_time();
+
+					float interval = 1.0 / data.process_rate_owner->get_process_rate_interval();
+					if (accumulated_process_time >= interval) {
+						GDVIRTUAL_CALL(_process, interval);
+						accumulated_process_time = 0.0;
+					}
+					break;
+				}
+				default: {}
+			}
 		} break;
 
 		case NOTIFICATION_PHYSICS_PROCESS: {
@@ -158,6 +190,19 @@ void Node::_notification(int p_notification) {
 				}
 			} else {
 				data.process_owner = this;
+			}
+
+			// Update process rate.
+			if (data.process_rate_type == PROCESS_RATE_INHERIT) {
+				if (data.parent) {
+					data.process_rate_owner = data.parent->data.process_rate_owner;
+				} else {
+					ERR_PRINT("The root node can't be set to Inherit process rate, reverting to Continuous instead.");
+					data.process_rate_type = PROCESS_RATE_CONTINUOUS;
+					data.process_rate_owner = this;
+				}
+			} else {
+				data.process_rate_owner = this;
 			}
 
 			{ // Update threaded process mode.
@@ -759,6 +804,35 @@ void Node::set_process_mode(ProcessMode p_mode) {
 #endif
 }
 
+void Node::set_process_rate_type(ProcessRateType p_rate) {
+	if (p_rate == data.process_rate_type) {
+		return;
+	}
+
+	if (p_rate == PROCESS_RATE_INHERIT) {
+		if (data.parent) {
+			data.process_rate_owner = data.parent->data.process_rate_owner;
+		} else {
+			ERR_FAIL_MSG("The root node can't be set to Inherit process rate.");
+		}
+	} else {
+		data.process_rate_owner = this;
+	}
+
+	data.process_rate_type = p_rate;
+
+	notify_property_list_changed();
+};
+
+
+void Node::set_process_rate_interval(float p_interval) {
+	data.process_rate_interval = CLAMP(p_interval, 0.0, 1000000.0);
+};
+
+float Node::get_process_rate_interval() const {
+	return data.process_rate_interval;
+};
+
 void Node::_propagate_pause_notification(bool p_enable) {
 	bool prev_can_process = _can_process(!p_enable);
 	bool next_can_process = _can_process(p_enable);
@@ -788,6 +862,10 @@ void Node::_propagate_suspend_notification(bool p_enable) {
 
 Node::ProcessMode Node::get_process_mode() const {
 	return data.process_mode;
+}
+
+Node::ProcessRateType Node::get_process_rate_type() const {
+	return data.process_rate_type;
 }
 
 void Node::_propagate_process_owner(Node *p_owner, int p_pause_notification, int p_enabled_notification) {
@@ -3696,6 +3774,19 @@ void Node::_validate_property(PropertyInfo &p_property) const {
 	if ((p_property.name == "process_thread_group_order" || p_property.name == "process_thread_messages") && data.process_thread_group == PROCESS_THREAD_GROUP_INHERIT) {
 		p_property.usage = 0;
 	}
+
+	if (p_property.name == "process_rate_interval") {
+		if (data.process_rate_type == PROCESS_RATE_INHERIT || data.process_rate_type == PROCESS_RATE_CONTINUOUS) {
+			p_property.usage = 0;
+		} else {
+			if (data.process_rate_type == PROCESS_RATE_SKIP_FRAMES) {
+				p_property.type = Variant::INT;
+			}
+			else if (data.process_rate_type == PROCESS_RATE_FIXED) {
+				p_property.type = Variant::FLOAT;
+			}
+		}
+	}
 }
 
 void Node::input(const Ref<InputEvent> &p_event) {
@@ -3908,6 +3999,11 @@ void Node::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_process_mode"), &Node::get_process_mode);
 	ClassDB::bind_method(D_METHOD("can_process"), &Node::can_process);
 
+	ClassDB::bind_method(D_METHOD("set_process_rate_type", "type"), &Node::set_process_rate_type);
+	ClassDB::bind_method(D_METHOD("get_process_rate_type"), &Node::get_process_rate_type);
+	ClassDB::bind_method(D_METHOD("set_process_rate_interval", "interval"), &Node::set_process_rate_interval);
+	ClassDB::bind_method(D_METHOD("get_process_rate_interval"), &Node::get_process_rate_interval);
+
 	ClassDB::bind_method(D_METHOD("set_process_thread_group", "mode"), &Node::set_process_thread_group);
 	ClassDB::bind_method(D_METHOD("get_process_thread_group"), &Node::get_process_thread_group);
 
@@ -4098,6 +4194,11 @@ void Node::_bind_methods() {
 	BIND_ENUM_CONSTANT(PROCESS_MODE_ALWAYS);
 	BIND_ENUM_CONSTANT(PROCESS_MODE_DISABLED);
 
+	BIND_ENUM_CONSTANT(PROCESS_RATE_INHERIT);
+	BIND_ENUM_CONSTANT(PROCESS_RATE_CONTINUOUS);
+	BIND_ENUM_CONSTANT(PROCESS_RATE_SKIP_FRAMES);
+	BIND_ENUM_CONSTANT(PROCESS_RATE_FIXED);
+
 	BIND_ENUM_CONSTANT(PROCESS_THREAD_GROUP_INHERIT);
 	BIND_ENUM_CONSTANT(PROCESS_THREAD_GROUP_MAIN_THREAD);
 	BIND_ENUM_CONSTANT(PROCESS_THREAD_GROUP_SUB_THREAD);
@@ -4146,6 +4247,10 @@ void Node::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "process_mode", PROPERTY_HINT_ENUM, "Inherit,Pausable,When Paused,Always,Disabled"), "set_process_mode", "get_process_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "process_priority"), "set_process_priority", "get_process_priority");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "process_physics_priority"), "set_physics_process_priority", "get_physics_process_priority");
+
+	ADD_SUBGROUP("Process Rate", "process_rate");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "process_rate_type", PROPERTY_HINT_ENUM, "Inherit,Continuous,Skip Frames,Fixed Rate"), "set_process_rate_type", "get_process_rate_type");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "process_rate_interval", PROPERTY_HINT_NONE, ""), "set_process_rate_interval", "get_process_rate_interval");
 
 	ADD_SUBGROUP("Thread Group", "process_thread");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "process_thread_group", PROPERTY_HINT_ENUM, "Inherit,Main Thread,Sub Thread"), "set_process_thread_group", "get_process_thread_group");
@@ -4205,6 +4310,8 @@ Node::Node() {
 	// Default member initializer for bitfield is a C++20 extension, so:
 
 	data.process_mode = PROCESS_MODE_INHERIT;
+	data.process_rate_type = PROCESS_RATE_INHERIT;
+
 	data.physics_interpolation_mode = PHYSICS_INTERPOLATION_MODE_INHERIT;
 
 	data.physics_process = false;

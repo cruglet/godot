@@ -75,6 +75,13 @@ public:
 		PROCESS_MODE_DISABLED, // never process
 	};
 
+	enum ProcessRateType {
+		PROCESS_RATE_INHERIT,
+		PROCESS_RATE_CONTINUOUS,
+		PROCESS_RATE_SKIP_FRAMES,
+		PROCESS_RATE_FIXED,
+	};
+
 	enum ProcessThreadGroup {
 		PROCESS_THREAD_GROUP_INHERIT,
 		PROCESS_THREAD_GROUP_MAIN_THREAD,
@@ -201,6 +208,7 @@ private:
 		List<Node *> owned;
 
 		Node *process_owner = nullptr;
+		Node *process_rate_owner = nullptr;
 		ProcessThreadGroup process_thread_group = PROCESS_THREAD_GROUP_INHERIT;
 		Node *process_thread_group_owner = nullptr;
 		int process_thread_group_order = 0;
@@ -217,6 +225,9 @@ private:
 		// Keep bitpacked values together to get better packing.
 		ProcessMode process_mode : 3;
 		PhysicsInterpolationMode physics_interpolation_mode : 2;
+
+		ProcessRateType process_rate_type : 2;
+		float process_rate_interval = 0;
 
 		bool physics_process : 1;
 		bool process : 1;
@@ -414,6 +425,10 @@ protected:
 	void _set_name_bind_compat_76560(const String &p_name);
 	static void _bind_compatibility_methods();
 #endif
+
+protected:
+	int frames_skipped = 0;
+	float accumulated_process_time = 0.0;
 
 public:
 	enum {
@@ -732,6 +747,11 @@ public:
 	bool can_process() const;
 	bool can_process_notification(int p_what) const;
 
+	void set_process_rate_type(ProcessRateType p_rate);
+	ProcessRateType get_process_rate_type() const;
+	void set_process_rate_interval(float p_rate_interval);
+	float get_process_rate_interval() const;
+
 	void set_physics_interpolation_mode(PhysicsInterpolationMode p_mode);
 	PhysicsInterpolationMode get_physics_interpolation_mode() const { return data.physics_interpolation_mode; }
 	_FORCE_INLINE_ bool is_physics_interpolated() const { return data.physics_interpolated; }
@@ -873,6 +893,7 @@ public:
 
 VARIANT_ENUM_CAST(Node::DuplicateFlags);
 VARIANT_ENUM_CAST(Node::ProcessMode);
+VARIANT_ENUM_CAST(Node::ProcessRateType);
 VARIANT_ENUM_CAST(Node::ProcessThreadGroup);
 VARIANT_BITFIELD_CAST(Node::ProcessThreadMessages);
 VARIANT_ENUM_CAST(Node::InternalMode);

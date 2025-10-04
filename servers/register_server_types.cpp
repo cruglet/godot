@@ -34,6 +34,7 @@
 #include "core/config/project_settings.h"
 
 #include "audio/audio_effect.h"
+#include "audio/audio_server.h"
 #include "audio/audio_stream.h"
 #include "audio/effects/audio_effect_amplify.h"
 #include "audio/effects/audio_effect_capture.h"
@@ -44,7 +45,6 @@
 #include "audio/effects/audio_effect_eq.h"
 #include "audio/effects/audio_effect_filter.h"
 #include "audio/effects/audio_effect_hard_limiter.h"
-#include "audio/effects/audio_effect_limiter.h"
 #include "audio/effects/audio_effect_panner.h"
 #include "audio/effects/audio_effect_phaser.h"
 #include "audio/effects/audio_effect_pitch_shift.h"
@@ -53,14 +53,12 @@
 #include "audio/effects/audio_effect_spectrum_analyzer.h"
 #include "audio/effects/audio_effect_stereo_enhance.h"
 #include "audio/effects/audio_stream_generator.h"
-#include "audio_server.h"
 #include "camera/camera_feed.h"
-#include "camera_server.h"
+#include "camera/camera_server.h"
 #include "debugger/servers_debugger.h"
+#include "display/display_server.h"
 #include "display/native_menu.h"
-#include "display_server.h"
 #include "movie_writer/movie_writer.h"
-#include "movie_writer/movie_writer_mjpeg.h"
 #include "movie_writer/movie_writer_pngwav.h"
 #include "rendering/renderer_rd/framebuffer_cache_rd.h"
 #include "rendering/renderer_rd/storage_rd/render_data_rd.h"
@@ -69,34 +67,37 @@
 #include "rendering/renderer_rd/uniform_set_cache_rd.h"
 #include "rendering/rendering_device.h"
 #include "rendering/rendering_device_binds.h"
+#include "rendering/rendering_server.h"
 #include "rendering/shader_include_db.h"
 #include "rendering/storage/render_data.h"
 #include "rendering/storage/render_scene_buffers.h"
 #include "rendering/storage/render_scene_data.h"
-#include "rendering_server.h"
 #include "servers/rendering/shader_types.h"
+#include "text/text_server.h"
 #include "text/text_server_dummy.h"
 #include "text/text_server_extension.h"
-#include "text_server.h"
+#ifndef DISABLE_DEPRECATED
+#include "audio/effects/audio_effect_limiter.h"
+#endif
 
 // 2D physics and navigation.
 #ifndef NAVIGATION_2D_DISABLED
-#include "navigation_server_2d.h"
+#include "servers/navigation_2d/navigation_server_2d.h"
 #endif // NAVIGATION_2D_DISABLED
 #ifndef PHYSICS_2D_DISABLED
-#include "physics_server_2d.h"
-#include "physics_server_2d_dummy.h"
-#include "servers/extensions/physics_server_2d_extension.h"
+#include "servers/physics_2d/physics_server_2d.h"
+#include "servers/physics_2d/physics_server_2d_dummy.h"
+#include "servers/physics_2d/physics_server_2d_extension.h"
 #endif // PHYSICS_2D_DISABLED
 
 // 3D physics and navigation.
 #ifndef NAVIGATION_3D_DISABLED
-#include "navigation_server_3d.h"
+#include "servers/navigation_3d/navigation_server_3d.h"
 #endif // NAVIGATION_3D_DISABLED
 #ifndef PHYSICS_3D_DISABLED
-#include "physics_server_3d.h"
-#include "physics_server_3d_dummy.h"
-#include "servers/extensions/physics_server_3d_extension.h"
+#include "servers/physics_3d/physics_server_3d.h"
+#include "servers/physics_3d/physics_server_3d_dummy.h"
+#include "servers/physics_3d/physics_server_3d_extension.h"
 #endif // PHYSICS_3D_DISABLED
 #ifndef XR_DISABLED
 #include "xr/xr_body_tracker.h"
@@ -106,7 +107,7 @@
 #include "xr/xr_interface.h"
 #include "xr/xr_interface_extension.h"
 #include "xr/xr_positional_tracker.h"
-#include "xr_server.h"
+#include "xr/xr_server.h"
 #endif // XR_DISABLED
 
 ShaderTypes *shader_types = nullptr;
@@ -133,7 +134,6 @@ static bool has_server_feature_callback(const String &p_feature) {
 	return false;
 }
 
-static MovieWriterMJPEG *writer_mjpeg = nullptr;
 static MovieWriterPNGWAV *writer_pngwav = nullptr;
 
 void register_server_types() {
@@ -205,16 +205,18 @@ void register_server_types() {
 		GDREGISTER_CLASS(AudioEffectChorus);
 		GDREGISTER_CLASS(AudioEffectDelay);
 		GDREGISTER_CLASS(AudioEffectCompressor);
-		GDREGISTER_CLASS(AudioEffectLimiter);
 		GDREGISTER_CLASS(AudioEffectHardLimiter);
 		GDREGISTER_CLASS(AudioEffectPitchShift);
 		GDREGISTER_CLASS(AudioEffectPhaser);
-
 		GDREGISTER_CLASS(AudioEffectRecord);
 		GDREGISTER_CLASS(AudioEffectSpectrumAnalyzer);
 		GDREGISTER_ABSTRACT_CLASS(AudioEffectSpectrumAnalyzerInstance);
 
 		GDREGISTER_CLASS(AudioEffectCapture);
+
+#ifndef DISABLE_DEPRECATED
+		GDREGISTER_CLASS(AudioEffectLimiter);
+#endif
 	}
 
 	GDREGISTER_ABSTRACT_CLASS(RenderingDevice);
@@ -342,11 +344,10 @@ void register_server_types() {
 	GDREGISTER_ABSTRACT_CLASS(XRTracker);
 #endif // XR_DISABLED
 
-	writer_mjpeg = memnew(MovieWriterMJPEG);
-	MovieWriter::add_writer(writer_mjpeg);
-
-	writer_pngwav = memnew(MovieWriterPNGWAV);
-	MovieWriter::add_writer(writer_pngwav);
+	if constexpr (GD_IS_CLASS_ENABLED(MovieWriterPNGWAV)) {
+		writer_pngwav = memnew(MovieWriterPNGWAV);
+		MovieWriter::add_writer(writer_pngwav);
+	}
 
 	OS::get_singleton()->benchmark_end_measure("Servers", "Register Extensions");
 }
@@ -356,8 +357,9 @@ void unregister_server_types() {
 
 	ServersDebugger::deinitialize();
 	memdelete(shader_types);
-	memdelete(writer_mjpeg);
-	memdelete(writer_pngwav);
+	if constexpr (GD_IS_CLASS_ENABLED(MovieWriterPNGWAV)) {
+		memdelete(writer_pngwav);
+	}
 
 	OS::get_singleton()->benchmark_end_measure("Servers", "Unregister Extensions");
 }

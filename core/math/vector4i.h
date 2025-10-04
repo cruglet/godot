@@ -37,7 +37,7 @@ class String;
 struct Vector4;
 
 struct [[nodiscard]] Vector4i {
-	static const int AXIS_COUNT = 4;
+	static constexpr int AXIS_COUNT = 4;
 
 	enum Axis {
 		AXIS_X,
@@ -132,7 +132,7 @@ struct [[nodiscard]] Vector4i {
 	constexpr bool operator>(const Vector4i &p_v) const;
 	constexpr bool operator>=(const Vector4i &p_v) const;
 
-	operator String() const;
+	explicit operator String() const;
 	operator Vector4() const;
 
 	constexpr Vector4i() :

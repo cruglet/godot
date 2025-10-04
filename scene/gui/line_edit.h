@@ -148,6 +148,7 @@ private:
 	bool shortcut_keys_enabled = true;
 
 	bool virtual_keyboard_enabled = true;
+	bool virtual_keyboard_show_on_focus = true;
 	VirtualKeyboardType virtual_keyboard_type = KEYBOARD_TYPE_DEFAULT;
 
 	bool middle_mouse_paste_enabled = true;
@@ -262,6 +263,8 @@ private:
 	void _delete(bool p_word = false, bool p_all_to_right = false);
 	void _texture_changed();
 
+	void _edit(bool p_show_virtual_keyboard = true);
+
 protected:
 	bool _is_over_clear_button(const Point2 &p_pos) const;
 
@@ -341,7 +344,7 @@ public:
 	void set_structured_text_bidi_override(TextServer::StructuredTextParser p_parser);
 	TextServer::StructuredTextParser get_structured_text_bidi_override() const;
 
-	void set_structured_text_bidi_override_options(Array p_args);
+	void set_structured_text_bidi_override_options(const Array &p_args);
 	Array get_structured_text_bidi_override_options() const;
 
 	void set_placeholder(String p_text);
@@ -400,6 +403,9 @@ public:
 
 	void set_virtual_keyboard_enabled(bool p_enable);
 	bool is_virtual_keyboard_enabled() const;
+
+	void set_virtual_keyboard_show_on_focus(bool p_show_on_focus);
+	bool get_virtual_keyboard_show_on_focus() const;
 
 	void set_virtual_keyboard_type(VirtualKeyboardType p_type);
 	VirtualKeyboardType get_virtual_keyboard_type() const;

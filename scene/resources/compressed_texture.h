@@ -76,7 +76,6 @@ private:
 
 protected:
 	static void _bind_methods();
-	void _validate_property(PropertyInfo &p_property) const;
 
 public:
 	static Ref<Image> load_image_from_file(Ref<FileAccess> p_file, int p_size_limit);
@@ -107,11 +106,12 @@ public:
 
 	virtual Ref<Image> get_image() const override;
 
-	CompressedTexture2D();
 	~CompressedTexture2D();
 };
 
 class ResourceFormatLoaderCompressedTexture2D : public ResourceFormatLoader {
+	GDSOFTCLASS(ResourceFormatLoaderCompressedTexture2D, ResourceFormatLoader);
+
 public:
 	virtual Ref<Resource> load(const String &p_path, const String &p_original_path = "", Error *r_error = nullptr, bool p_use_sub_threads = false, float *r_progress = nullptr, CacheMode p_cache_mode = CACHE_MODE_REUSE) override;
 	virtual void get_recognized_extensions(List<String> *p_extensions) const override;
@@ -154,7 +154,6 @@ private:
 
 protected:
 	static void _bind_methods();
-	void _validate_property(PropertyInfo &p_property) const;
 
 public:
 	Image::Format get_format() const override;
@@ -177,6 +176,8 @@ public:
 };
 
 class ResourceFormatLoaderCompressedTextureLayered : public ResourceFormatLoader {
+	GDSOFTCLASS(ResourceFormatLoaderCompressedTextureLayered, ResourceFormatLoader);
+
 public:
 	virtual Ref<Resource> load(const String &p_path, const String &p_original_path = "", Error *r_error = nullptr, bool p_use_sub_threads = false, float *r_progress = nullptr, CacheMode p_cache_mode = CACHE_MODE_REUSE) override;
 	virtual void get_recognized_extensions(List<String> *p_extensions) const override;
@@ -241,7 +242,6 @@ private:
 
 protected:
 	static void _bind_methods();
-	void _validate_property(PropertyInfo &p_property) const;
 
 public:
 	Image::Format get_format() const override;
@@ -258,11 +258,12 @@ public:
 
 	virtual Vector<Ref<Image>> get_data() const override;
 
-	CompressedTexture3D();
 	~CompressedTexture3D();
 };
 
 class ResourceFormatLoaderCompressedTexture3D : public ResourceFormatLoader {
+	GDSOFTCLASS(ResourceFormatLoaderCompressedTexture3D, ResourceFormatLoader);
+
 public:
 	virtual Ref<Resource> load(const String &p_path, const String &p_original_path = "", Error *r_error = nullptr, bool p_use_sub_threads = false, float *r_progress = nullptr, CacheMode p_cache_mode = CACHE_MODE_REUSE) override;
 	virtual void get_recognized_extensions(List<String> *p_extensions) const override;

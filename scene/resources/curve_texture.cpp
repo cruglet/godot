@@ -163,12 +163,10 @@ RID CurveTexture::get_rid() const {
 	return _texture;
 }
 
-CurveTexture::CurveTexture() {}
-
 CurveTexture::~CurveTexture() {
 	if (_texture.is_valid()) {
 		ERR_FAIL_NULL(RenderingServer::get_singleton());
-		RS::get_singleton()->free(_texture);
+		RS::get_singleton()->free_rid(_texture);
 	}
 }
 
@@ -360,11 +358,9 @@ RID CurveXYZTexture::get_rid() const {
 	return _texture;
 }
 
-CurveXYZTexture::CurveXYZTexture() {}
-
 CurveXYZTexture::~CurveXYZTexture() {
 	if (_texture.is_valid()) {
 		ERR_FAIL_NULL(RenderingServer::get_singleton());
-		RS::get_singleton()->free(_texture);
+		RS::get_singleton()->free_rid(_texture);
 	}
 }

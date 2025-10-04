@@ -243,6 +243,27 @@ void SpriteBase3D::draw_texture_rect(Ref<Texture2D> p_texture, Rect2 p_dst_rect,
 		memcpy(&attribute_write_buffer[i * attrib_stride + mesh_surface_offsets[RS::ARRAY_COLOR]], v_color, 4);
 	}
 
+	switch (get_billboard_mode()) {
+		case StandardMaterial3D::BILLBOARD_ENABLED: {
+			real_t size_new = MAX(Math::abs(final_rect.position.x) * px_size, (final_rect.position.x + final_rect.size.x) * px_size);
+			size_new = MAX(size_new, MAX(Math::abs(final_rect.position.y) * px_size, (final_rect.position.y + final_rect.size.y) * px_size));
+			aabb_new.position = Vector3(-size_new, -size_new, -size_new);
+			aabb_new.size = Vector3(size_new * 2.0, size_new * 2.0, size_new * 2.0);
+		} break;
+		case StandardMaterial3D::BILLBOARD_FIXED_Y: {
+			real_t size_new = MAX(Math::abs(final_rect.position.x) * px_size, (final_rect.position.x + final_rect.size.x) * px_size);
+			if (ax == Vector3::AXIS_Y) {
+				size_new = MAX(size_new, MAX(Math::abs(final_rect.position.y) * px_size, (final_rect.position.y + final_rect.size.y) * px_size));
+			}
+			aabb_new.position.x = -size_new;
+			aabb_new.position.z = -size_new;
+			aabb_new.size.x = size_new * 2.0;
+			aabb_new.size.z = size_new * 2.0;
+		} break;
+		default:
+			break;
+	}
+
 	RID mesh_new = get_mesh();
 	RS::get_singleton()->mesh_surface_update_vertex_region(mesh_new, 0, 0, vertex_buffer);
 	RS::get_singleton()->mesh_surface_update_attribute_region(mesh_new, 0, 0, attribute_buffer);
@@ -751,8 +772,8 @@ SpriteBase3D::SpriteBase3D() {
 
 SpriteBase3D::~SpriteBase3D() {
 	ERR_FAIL_NULL(RenderingServer::get_singleton());
-	RenderingServer::get_singleton()->free(mesh);
-	RenderingServer::get_singleton()->free(material);
+	RenderingServer::get_singleton()->free_rid(mesh);
+	RenderingServer::get_singleton()->free_rid(material);
 }
 
 ///////////////////////////////////////////
@@ -943,18 +964,13 @@ Rect2 Sprite3D::get_item_rect() const {
 }
 
 void Sprite3D::_validate_property(PropertyInfo &p_property) const {
+	if (!Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
 	if (p_property.name == "frame") {
 		p_property.hint = PROPERTY_HINT_RANGE;
 		p_property.hint_string = "0," + itos(vframes * hframes - 1) + ",1";
 		p_property.usage |= PROPERTY_USAGE_KEYING_INCREMENTS;
-	}
-
-	if (p_property.name == "frame_coords") {
-		p_property.usage |= PROPERTY_USAGE_KEYING_INCREMENTS;
-	}
-
-	if (!region && (p_property.name == "region_rect")) {
-		p_property.usage = PROPERTY_USAGE_NO_EDITOR;
 	}
 }
 
@@ -985,9 +1001,9 @@ void Sprite3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "hframes", PROPERTY_HINT_RANGE, "1,16384,1"), "set_hframes", "get_hframes");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "vframes", PROPERTY_HINT_RANGE, "1,16384,1"), "set_vframes", "get_vframes");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "frame"), "set_frame", "get_frame");
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2I, "frame_coords", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR), "set_frame_coords", "get_frame_coords");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2I, "frame_coords", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_KEYING_INCREMENTS), "set_frame_coords", "get_frame_coords");
 	ADD_GROUP("Region", "region_");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "region_enabled"), "set_region_enabled", "is_region_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "region_enabled", PROPERTY_HINT_GROUP_ENABLE), "set_region_enabled", "is_region_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::RECT2, "region_rect", PROPERTY_HINT_NONE, "suffix:px"), "set_region_rect", "get_region_rect");
 
 	ADD_SIGNAL(MethodInfo("frame_changed"));
@@ -1035,7 +1051,12 @@ void AnimatedSprite3D::_validate_property(PropertyInfo &p_property) const {
 	if (frames.is_null()) {
 		return;
 	}
-
+	if (!Engine::get_singleton()->is_editor_hint()) {
+		if (p_property.name == "frame" && playing) {
+			p_property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY;
+		}
+		return;
+	}
 	if (p_property.name == "animation") {
 		List<StringName> names;
 		frames->get_animation_list(&names);

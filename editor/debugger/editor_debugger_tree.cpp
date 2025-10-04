@@ -31,16 +31,16 @@
 #include "editor_debugger_tree.h"
 
 #include "editor/debugger/editor_debugger_node.h"
+#include "editor/docks/scene_tree_dock.h"
 #include "editor/editor_node.h"
-#include "editor/editor_settings.h"
 #include "editor/editor_string_names.h"
 #include "editor/gui/editor_file_dialog.h"
 #include "editor/gui/editor_toaster.h"
-#include "editor/scene_tree_dock.h"
+#include "editor/settings/editor_settings.h"
 #include "scene/debugger/scene_debugger.h"
 #include "scene/gui/texture_rect.h"
 #include "scene/resources/packed_scene.h"
-#include "servers/display_server.h"
+#include "servers/display/display_server.h"
 
 EditorDebuggerTree::EditorDebuggerTree() {
 	set_v_size_flags(SIZE_EXPAND_FILL);
@@ -95,10 +95,7 @@ void EditorDebuggerTree::_scene_tree_selection_changed(TreeItem *p_item, int p_c
 		if (inspected_object_ids.size() == (int)EDITOR_GET("debugger/max_node_selection")) {
 			selection_surpassed_limit = true;
 			p_item->deselect(0);
-			return;
-		}
-
-		if (!inspected_object_ids.has(id)) {
+		} else if (!inspected_object_ids.has(id)) {
 			inspected_object_ids.append(id);
 		}
 	} else if (inspected_object_ids.has(id)) {
@@ -375,6 +372,16 @@ void EditorDebuggerTree::update_scene_tree(const SceneDebuggerTree *p_tree, int 
 	}
 	if (scroll_item) {
 		scroll_to_item(scroll_item, false);
+	}
+
+	if (new_session) {
+		// Some nodes may stay selected between sessions.
+		// Make sure the inspector shows them properly.
+		if (!notify_selection_queued) {
+			callable_mp(this, &EditorDebuggerTree::_notify_selection_changed).call_deferred();
+			notify_selection_queued = true;
+		}
+		new_session = false;
 	}
 
 	last_filter = filter;

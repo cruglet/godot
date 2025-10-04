@@ -49,7 +49,7 @@ typedef Vector<uint8_t> (*SavePNGBufferFunc)(const Ref<Image> &p_img);
 typedef Error (*SaveJPGFunc)(const String &p_path, const Ref<Image> &p_img, float p_quality);
 typedef Vector<uint8_t> (*SaveJPGBufferFunc)(const Ref<Image> &p_img, float p_quality);
 
-typedef Ref<Image> (*ImageMemLoadFunc)(const uint8_t *p_png, int p_size);
+typedef Ref<Image> (*ImageMemLoadFunc)(const uint8_t *p_data, int p_size);
 typedef Ref<Image> (*ScalableImageMemLoadFunc)(const uint8_t *p_data, int p_size, float p_scale);
 
 typedef Error (*SaveWebPFunc)(const String &p_path, const Ref<Image> &p_img, const bool p_lossy, const float p_quality);
@@ -111,6 +111,14 @@ public:
 		FORMAT_ASTC_4x4_HDR,
 		FORMAT_ASTC_8x8,
 		FORMAT_ASTC_8x8_HDR,
+		FORMAT_R16,
+		FORMAT_RG16,
+		FORMAT_RGB16,
+		FORMAT_RGBA16,
+		FORMAT_R16I,
+		FORMAT_RG16I,
+		FORMAT_RGB16I,
+		FORMAT_RGBA16I,
 		FORMAT_MAX
 	};
 
@@ -182,6 +190,11 @@ public:
 		ALPHA_BLEND
 	};
 
+	struct BasisUniversalPackerParams {
+		int uastc_level = 0;
+		float rdo_quality_loss = 0;
+	};
+
 	// External saver function pointers.
 
 	static inline SavePNGFunc save_png_func = nullptr;
@@ -231,7 +244,7 @@ public:
 	static Vector<uint8_t> (*webp_lossy_packer)(const Ref<Image> &p_image, float p_quality);
 	static Vector<uint8_t> (*webp_lossless_packer)(const Ref<Image> &p_image);
 	static Vector<uint8_t> (*png_packer)(const Ref<Image> &p_image);
-	static Vector<uint8_t> (*basis_universal_packer)(const Ref<Image> &p_image, UsedChannels p_channels);
+	static Vector<uint8_t> (*basis_universal_packer)(const Ref<Image> &p_image, UsedChannels p_channels, const BasisUniversalPackerParams &p_basisu_params);
 
 	static Ref<Image> (*webp_unpacker)(const Vector<uint8_t> &p_buffer);
 	static Ref<Image> (*png_unpacker)(const Vector<uint8_t> &p_buffer);
@@ -239,6 +252,8 @@ public:
 	static Ref<Image> (*basis_universal_unpacker_ptr)(const uint8_t *p_data, int p_size);
 
 protected:
+	virtual Ref<Resource> _duplicate(const DuplicateParams &p_params) const override;
+
 	static void _bind_methods();
 
 private:
@@ -275,10 +290,14 @@ private:
 	static void average_4_float(float &p_out, const float &p_a, const float &p_b, const float &p_c, const float &p_d);
 	static void average_4_half(uint16_t &p_out, const uint16_t &p_a, const uint16_t &p_b, const uint16_t &p_c, const uint16_t &p_d);
 	static void average_4_rgbe9995(uint32_t &p_out, const uint32_t &p_a, const uint32_t &p_b, const uint32_t &p_c, const uint32_t &p_d);
+	static void average_4_uint16(uint16_t &p_out, const uint16_t &p_a, const uint16_t &p_b, const uint16_t &p_c, const uint16_t &p_d);
+	static void average_4_rgba4444(uint16_t &p_out, const uint16_t &p_a, const uint16_t &p_b, const uint16_t &p_c, const uint16_t &p_d);
+	static void average_4_rgb565(uint16_t &p_out, const uint16_t &p_a, const uint16_t &p_b, const uint16_t &p_c, const uint16_t &p_d);
+
 	static void renormalize_uint8(uint8_t *p_rgb);
 	static void renormalize_float(float *p_rgb);
 	static void renormalize_half(uint16_t *p_rgb);
-	static void renormalize_rgbe9995(uint32_t *p_rgb);
+	static void renormalize_uint16(uint16_t *p_rgb);
 
 public:
 	int get_width() const;
@@ -419,8 +438,6 @@ public:
 	void convert_rg_to_ra_rgba8();
 	void convert_ra_rgba8_to_rg();
 	void convert_rgba8_to_bgra8();
-
-	virtual Ref<Resource> duplicate(bool p_subresources = false) const override;
 
 	UsedChannels detect_used_channels(CompressSource p_source = COMPRESS_SOURCE_GENERIC) const;
 	void optimize_channels();

@@ -39,6 +39,8 @@ class ThemeContext;
 class Window;
 
 class ThemeOwner : public Object {
+	GDSOFTCLASS(ThemeOwner, Object);
+
 	Node *holder = nullptr;
 
 	Control *owner_control = nullptr;
@@ -78,5 +80,4 @@ public:
 	int get_theme_default_font_size();
 
 	ThemeOwner(Node *p_holder) { holder = p_holder; }
-	~ThemeOwner() {}
 };

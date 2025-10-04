@@ -98,7 +98,7 @@ public:
 	static StringName get_global_class_native_base(const String &p_class);
 	static bool is_global_class_abstract(const String &p_class);
 	static bool is_global_class_tool(const String &p_class);
-	static void get_global_class_list(List<StringName> *r_global_classes);
+	static void get_global_class_list(LocalVector<StringName> &r_global_classes);
 	static void get_inheriters_list(const StringName &p_base_type, List<StringName> *r_classes);
 	static void save_global_classes();
 
@@ -135,7 +135,13 @@ protected:
 
 	void _set_debugger_break_language();
 
+	Variant _get_rpc_config_bind() const {
+		return get_rpc_config().duplicate(true);
+	}
+
 public:
+	static constexpr AncestralClass static_ancestral_class = AncestralClass::SCRIPT;
+
 	virtual void reload_from_file() override;
 
 	virtual bool can_instantiate() const = 0;
@@ -191,9 +197,11 @@ public:
 
 	virtual bool is_placeholder_fallback_enabled() const { return false; }
 
-	virtual Variant get_rpc_config() const = 0;
+	virtual const Variant get_rpc_config() const = 0;
 
-	Script() {}
+	Script() {
+		_define_ancestry(AncestralClass::SCRIPT);
+	}
 };
 
 class ScriptLanguage : public Object {
@@ -214,7 +222,6 @@ public:
 	/* EDITOR FUNCTIONS */
 	struct Warning {
 		int start_line = -1, end_line = -1;
-		int leftmost_column = -1, rightmost_column = -1;
 		int code;
 		String string_code;
 		String message;
@@ -255,11 +262,11 @@ public:
 	};
 
 	void get_core_type_words(List<String> *p_core_type_words) const;
-	virtual void get_reserved_words(List<String> *p_words) const = 0;
+	virtual Vector<String> get_reserved_words() const = 0;
 	virtual bool is_control_flow_keyword(const String &p_string) const = 0;
-	virtual void get_comment_delimiters(List<String> *p_delimiters) const = 0;
-	virtual void get_doc_comment_delimiters(List<String> *p_delimiters) const = 0;
-	virtual void get_string_delimiters(List<String> *p_delimiters) const = 0;
+	virtual Vector<String> get_comment_delimiters() const = 0;
+	virtual Vector<String> get_doc_comment_delimiters() const = 0;
+	virtual Vector<String> get_string_delimiters() const = 0;
 	virtual Ref<Script> make_template(const String &p_template, const String &p_class_name, const String &p_base_class_name) const { return Ref<Script>(); }
 	virtual Vector<ScriptTemplate> get_built_in_templates(const StringName &p_object) { return Vector<ScriptTemplate>(); }
 	virtual bool is_using_templates() { return false; }

@@ -5008,7 +5008,7 @@ Ref<Texture2D> EditorNode::_get_class_or_script_icon(const String &p_class, cons
 	if (!p_script_path.is_empty()) {
 		Ref<Texture2D> script_icon = ed.get_script_icon(p_script_path);
 		if (script_icon.is_valid()) {
-			return script_icon;
+			return _get_scaled_icon(script_icon);
 		}
 
 		if (p_fallback_script_to_theme) {
@@ -5035,7 +5035,7 @@ Ref<Texture2D> EditorNode::_get_class_or_script_icon(const String &p_class, cons
 	// Check if the class name is an extension-defined type.
 	Ref<Texture2D> ext_icon = ed.extension_class_get_icon(p_class);
 	if (ext_icon.is_valid()) {
-		return ext_icon;
+		return _get_scaled_icon(ext_icon);
 	}
 
 	// Check if the class name is a custom type.
@@ -5068,6 +5068,20 @@ Ref<Texture2D> EditorNode::_get_class_or_script_icon(const String &p_class, cons
 	}
 
 	return nullptr;
+}
+
+Ref<Texture2D> EditorNode::_get_scaled_icon(const Ref<Texture2D> &p_icon) {
+    if (!p_icon.is_valid()) return p_icon;
+
+    int icon_size = Math::round(int(EDITOR_DEF("interface/icons/default_size", 16)) * EDSCALE);
+
+    Ref<Image> img = p_icon->get_image();
+    if (!img.is_valid()) return p_icon;
+
+    Ref<Image> scaled = img->duplicate();
+    scaled->resize(icon_size, icon_size, Image::INTERPOLATE_NEAREST);
+	
+    return ImageTexture::create_from_image(scaled);
 }
 
 Ref<Texture2D> EditorNode::get_object_icon(const Object *p_object, const String &p_fallback) {

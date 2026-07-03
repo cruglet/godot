@@ -3278,6 +3278,20 @@ void SceneTreeDock::_create() {
 	scene_tree->get_scene_tree()->grab_focus(true);
 }
 
+static String _get_node_default_name(Node *p_node) {
+	String type_name = p_node->get_class();
+	if (p_node->has_meta(SceneStringName(_custom_type_script))) {
+		const Ref<Script> cts = PropertyUtils::get_custom_type_script(p_node);
+		if (cts.is_valid() && !String(cts->get_global_name()).is_empty()) {
+			type_name = cts->get_global_name();
+		}
+	}
+	if (GLOBAL_GET("editor/naming/node_name_casing").operator int() != Node::NAME_CASING_PASCAL_CASE) {
+		return Node::adjust_name_casing(type_name);
+	}
+	return type_name;
+}
+
 void SceneTreeDock::replace_node(Node *p_node, Node *p_by_node) {
 	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 	ur->create_action(TTR("Change type of node(s)"), UndoRedo::MERGE_DISABLE, p_node);
@@ -3369,6 +3383,7 @@ void SceneTreeDock::_replace_node(Node *p_node, Node *p_by_node, bool p_keep_pro
 	}
 
 	String newname = oldnode->get_name();
+	String old_default_name = _get_node_default_name(oldnode);
 	if (oldnode == edited_scene) {
 		EditorNode::get_singleton()->set_edited_scene_root(newnode, false);
 	}
@@ -3385,6 +3400,13 @@ void SceneTreeDock::_replace_node(Node *p_node, Node *p_by_node, bool p_keep_pro
 		Node *c = newnode->get_child(i);
 		c->call("set_transform", c->call("get_transform"));
 	}
+
+	if (newname == old_default_name) {
+		const String new_default_name = _get_node_default_name(newnode);
+		Node *new_parent = newnode->get_parent();
+		newname = new_parent ? new_parent->prevalidate_child_name(newnode, new_default_name) : new_default_name;
+	}
+
 	newnode->set_name(newname);
 
 	_push_item(newnode);
